@@ -1,0 +1,34 @@
+# postgresql - main database
+# DB issues are usually memory/disk related, not log-heavy
+
+service:
+  name: postgresql
+  # Note: Debian/Ubuntu uses postgresql.service, RHEL uses postgresql-XX.service
+  # Adjust if you're on CentOS/RHEL
+  unit: postgresql.service
+
+output:
+  artifacts_dir: /var/tmp/incident-bundles
+
+logs:
+  # Postgres is pretty quiet unless something is really wrong
+  # 2h window to catch slow query warnings and connection issues
+  since: "2h"
+  lines: 3000
+
+collect:
+  systemd: true
+  # IMPORTANT: journald logs may contain query strings with sensitive data!
+  # Consider setting to false if your app logs PII in queries
+  journald: true
+  # Resource info is critical for postgres - OOM kills, disk full, etc
+  resource: true
+  # Process snapshot - check for fd exhaustion (max_connections related)
+  process: true
+  # Hardening check - postgres should run as postgres user, not root
+  hardening: true
+
+collector_options:
+  hardening:
+    # Postgres typically has good defaults, but worth checking
+    fail_on_warn: false

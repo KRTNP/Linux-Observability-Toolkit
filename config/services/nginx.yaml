@@ -1,0 +1,35 @@
+# nginx - web server / reverse proxy
+# High request volume = need more log lines when debugging 502s
+
+service:
+  name: nginx
+  unit: nginx.service
+
+output:
+  artifacts_dir: /var/tmp/incident-bundles
+
+logs:
+  # Nginx logs A LOT during traffic spikes. 10k lines usually catches
+  # the interesting stuff without making the bundle huge
+  since: "30 min ago"
+  lines: 10000
+
+collect:
+  systemd: true
+  journald: true
+  resource: true
+  process: true       # grab MainPID info, fd count, limits
+  hardening: false    # enable for security audits
+
+# Uncomment to auto-redact secrets from logs
+# redact:
+#   enabled: true
+#   patterns:
+#     - "X-Api-Key: \\w+"     # custom header we use
+
+# Fine-tune collector behavior if needed
+# collector_options:
+#   journald:
+#     output_format: json    # instead of short-iso
+#   process:
+#     include_fd_list: true  # list all open fds (can be huge)

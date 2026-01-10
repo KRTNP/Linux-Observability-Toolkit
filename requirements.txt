@@ -1,0 +1,6 @@
+# Core deps
+pyyaml>=6.0  # config parsing
+
+# That's it. Keeping deps minimal on purpose -
+# this needs to run on random prod boxes where you can't
+# always pip install whatever you want
