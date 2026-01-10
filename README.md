@@ -1,6 +1,6 @@
 # Linux Observability Toolkit
 
-CLI tool for grabbing incident data from Linux boxes into a single bundle.
+CLI tool for grabbing incident data from Linux boxes into a single bundle..
 
 ## Why I Built This
 
