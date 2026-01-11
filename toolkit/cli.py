@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import socket
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime, timezone
 
@@ -16,6 +17,7 @@ from toolkit.collectors.resource import collect_resource
 from toolkit.collectors.process import collect_process
 from toolkit.collectors.hardening import collect_hardening
 from toolkit.version import __version__, get_git_hash
+from toolkit.metrics import write_metrics
 
 
 def main():
@@ -35,6 +37,8 @@ def main():
     args = p.parse_args()
 
     if args.cmd == "incident" and args.subcmd == "collect":
+        start_time = time.time()
+
         cfg = load_config(args.config)
         unit = cfg["service"]["unit"]
         svc = cfg["service"]["name"]
@@ -116,6 +120,15 @@ def main():
         write_json(out_dir / "meta.json", meta)
 
         tgz = tar_gz(out_dir)
+        duration = time.time() - start_time
+
+        # Write metrics for Prometheus (if node_exporter textfile collector is set up)
+        try:
+            bundle_size = tgz.stat().st_size
+        except OSError:
+            bundle_size = 0
+        write_metrics(svc, done, failed, duration, bundle_size)
+
         print(str(tgz))
 
         return 1 if failed else 0
