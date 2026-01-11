@@ -1,0 +1,63 @@
+# Prometheus alerting rules for Linux Observability Toolkit
+# Copy to /etc/prometheus/rules.d/ or include in prometheus.yml
+
+groups:
+  - name: toolkit
+    rules:
+      # Alert if a collector failed during bundle collection
+      - alert: ToolkitCollectorFailed
+        expr: toolkit_collectors_failed > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Toolkit collector failed for {{ $labels.service }}"
+          description: "{{ $value }} collector(s) failed during bundle collection. Check the bundle for details."
+
+      # Alert if bundle collection is taking too long
+      - alert: ToolkitCollectionSlow
+        expr: toolkit_collection_duration_seconds > 60
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow bundle collection for {{ $labels.service }}"
+          description: "Collection took {{ $value | humanizeDuration }}. May indicate disk I/O issues or huge logs."
+
+      # Alert if bundle size is unusually large (> 50MB)
+      - alert: ToolkitBundleTooLarge
+        expr: toolkit_bundle_size_bytes > 52428800
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Large bundle for {{ $labels.service }}"
+          description: "Bundle size is {{ $value | humanize1024 }}B. Consider lowering log lines limit."
+
+      # Alert if no collections in 24h (might indicate cron/automation failure)
+      - alert: ToolkitNoRecentCollection
+        expr: time() - toolkit_last_collection_timestamp_seconds > 86400
+        for: 0m
+        labels:
+          severity: info
+        annotations:
+          summary: "No recent collection for {{ $labels.service }}"
+          description: "Last collection was {{ $value | humanizeDuration }} ago."
+
+  # Service-level alerts (using data from collected bundles)
+  - name: service-health
+    rules:
+      # These would come from parsing bundle content or separate exporters
+      # Just examples of what you might alert on
+
+      - alert: ServiceHighRestartCount
+        expr: |
+          # You'd need a separate exporter for this, but here's the idea
+          # systemd_unit_restart_count{} > 5
+          vector(0) > 1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service {{ $labels.unit }} restarting frequently"
+          description: "Service has restarted {{ $value }} times. Check logs."
