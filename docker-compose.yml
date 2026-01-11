@@ -1,0 +1,8 @@
+services:
+  toolkit:
+    build: .
+    image: linux-observability-toolkit:latest
+    volumes:
+      - /var/tmp/incident-bundles:/var/tmp/incident-bundles
+      - ./config:/app/config:ro
+    command: ["incident", "collect", "--config", "config/services/nginx.yaml"]
