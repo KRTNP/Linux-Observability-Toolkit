@@ -1,10 +1,10 @@
 # Linux Observability Toolkit
 
-CLI tool for grabbing incident data from Linux boxes into a single bundle..
+A CLI tool that grabs incident data from a Linux box and packs it into one bundle.
 
-## Why I Built This
+## Why I built this
 
-Tired of SSHing into a crashed server and running the same `journalctl`, `systemctl status`, `free -h` dance every time. This bundles everything into one tarball so you can analyze it later (or send it to someone else to look at).
+I got tired of SSHing into a crashed server and running the same `journalctl`, `systemctl status`, `free -h` routine every time. This does all of it in one go and gives you a tarball you can dig through later, or hand to someone else.
 
 ## Requirements
 
@@ -12,9 +12,9 @@ Tired of SSHing into a crashed server and running the same `journalctl`, `system
 - Linux with systemd (Ubuntu, Debian, CentOS, RHEL, Fedora, etc.)
 - The usual suspects: `systemctl`, `journalctl`, `bash`, `ip`, `ss`, `df`, `free`, `lsblk`
 
-**Won't work on:** Alpine (no systemd), WSL1 (fake systemd), old RHEL 6 boxes
+It won't work on Alpine (no systemd), WSL1 (fake systemd), or old RHEL 6 boxes.
 
-## Quick Start
+## Quick start
 
 ```bash
 git clone <repo>
@@ -24,7 +24,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Copy and edit a config for your service:
+Copy one of the example configs and edit it for your service:
 
 ```bash
 cp config/services/nginx.yaml config/services/myapp.yaml
@@ -37,19 +37,19 @@ Run it:
 python -m toolkit incident collect --config config/services/myapp.yaml
 ```
 
-With log redaction (scrubs passwords, API keys, tokens):
+Add `--redact` to scrub passwords, API keys, and tokens from the logs:
 
 ```bash
 python -m toolkit incident collect --config config/services/myapp.yaml --redact
 ```
 
-Override log settings:
+Or override the log window and line count:
 
 ```bash
 python -m toolkit incident collect --config config/services/myapp.yaml --since "2h" --lines 20000
 ```
 
-## What You Get
+## What you get
 
 ```
 /var/tmp/incident-bundles/20250109-123456Z-myapp/
@@ -81,17 +81,17 @@ python -m toolkit incident collect --config config/services/myapp.yaml --since "
 | `journald` | on | service logs (supports redaction) |
 | `resource` | on | memory, disk, network info |
 | `process` | on | MainPID info, /proc limits, fd count |
-| `hardening` | **off** | security check report |
+| `hardening` | off | security check report |
 
-## Log Redaction
+## Log redaction
 
-Bundles can contain secrets (API keys in error logs, etc). Use `--redact` to scrub common patterns:
+Bundles can end up with secrets in them, like an API key that got dumped into an error log. `--redact` scrubs the common patterns:
 
 ```bash
 python -m toolkit incident collect --config ... --redact
 ```
 
-Or enable in config:
+You can also turn it on in the config and add your own patterns:
 
 ```yaml
 redact:
@@ -101,17 +101,15 @@ redact:
     - "MY_SECRET_\\w+"
 ```
 
-Default patterns catch: `api_key=`, `password=`, `token=`, `secret=`, `bearer`, basic auth in URLs.
+The defaults catch `api_key=`, `password=`, `token=`, `secret=`, `bearer`, and basic auth in URLs.
 
-**Still review the bundle before sharing** - regex isn't perfect.
+Look through the bundle yourself before you share it anyway. Regex isn't perfect.
 
-## Safety Features
+## Safety
 
-- **Disk space check**: Warns if < 500MB free before collecting
-- **Output limits**: Commands limited to 2MB stdout/stderr
-- **Timeout**: Each command has a timeout (no hanging on stuck processes)
+The tool warns you if there's less than 500MB of free disk before it starts collecting. Each command's stdout and stderr are capped at 2MB, and every command has a timeout, so a stuck process won't hang the whole run.
 
-## Config Options
+## Config
 
 ```yaml
 service:
@@ -140,36 +138,37 @@ redact:
 
 ## Runbooks
 
-See `runbooks/` for deployment procedures:
-- `deploy.md` - deploy with pre/post bundle collection
-- `rollback.md` - rollback with evidence preservation
+`runbooks/` has two deployment procedures:
+
+- `deploy.md`: deploy with a bundle collected before and after
+- `rollback.md`: roll back while keeping the evidence
 
 ## Troubleshooting
 
-**Collector fails on old CentOS 7 boxes**
+### A collector fails on old CentOS 7 boxes
 
-Some systemd features are missing on older distros. Just disable the problematic collector in your config and move on:
+Older distros are missing some systemd features. Turn off the collector that's failing and move on:
 
 ```yaml
 collect:
   hardening: false  # doesn't work great on centos 7
 ```
 
-**"No journal entries" warning**
+### "No journal entries" warning
 
-Usually means the service is just quiet, or your `--since` window is too short. Try `--since "2h"` or check if the service actually logs to journald (some apps log to files instead).
+Usually the service is just quiet, or your `--since` window is too short. Try `--since "2h"`, and check that the service actually logs to journald. Some apps write to their own log files instead.
 
-**Permission denied on /proc stuff**
+### Permission denied on /proc
 
-Run as root, or accept that you won't get process details. The tool won't crash, it'll just show `[need root]` in the output.
+Run it as root, or live without the process details. The tool won't crash. You'll just see `[need root]` in the output.
 
-**Bundle is huge**
+### The bundle is huge
 
-Lower the `lines` setting in your config. Default is 5000 which is usually fine, but busy services can generate a lot.
+Lower `lines` in your config. The default is 5000, which is usually fine, but a busy service can log a lot.
 
-## Known Issues / TODO
+## Known issues / TODO
 
-- Redaction regex might miss weird formats or false-positive on legit data - always review before sharing
-- `lsof` not implemented - just counting fds for now
-- RHEL/CentOS: postgres unit is `postgresql-XX.service`, not `postgresql.service`
-- Haven't tested on every distro, YMMV on Arch/Gentoo/etc
+- Redaction can miss weird formats, or redact stuff that isn't actually a secret. Review before sharing.
+- No `lsof` yet. It only counts fds for now.
+- On RHEL/CentOS the postgres unit is `postgresql-XX.service`, not `postgresql.service`.
+- I haven't tested it on every distro. YMMV on Arch, Gentoo, etc.
